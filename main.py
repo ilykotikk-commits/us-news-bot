@@ -7,7 +7,7 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 def send_to_telegram(text):
-    if len(text.strip()) < 50:
+    if len(text.strip()) < 100:
         print("Сообщение слишком короткое")
         return
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -20,18 +20,22 @@ def send_to_telegram(text):
         r = requests.post(url, json=payload, timeout=20)
         print(f"Telegram status: {r.status_code}")
         if r.status_code == 200:
-            print("✅ Отправлено успешно!")
+            print("✅ Сообщение успешно отправлено!")
     except Exception as e:
         print(f"Ошибка отправки: {e}")
 
+def clean_text(text):
+    if not text:
+        return ""
+    return text.replace('<b>', '').replace('</b>', '').replace('&nbsp;', ' ').strip()
+
 def main():
-    print(f"[{datetime.now().strftime('%H:%M')}] Запуск парсера...")
+    print(f"[{datetime.now().strftime('%H:%M')}] Запуск парсера выжимок...")
 
     message = f"<b>🇺🇸 Топ новости США — короткие выжимки</b>\n"
     message += f"<i>{datetime.now().strftime('%d %B %H:%M')}</i>\n\n"
 
-    # Берём самые популярные категории
-    categories = ["U.S. news", "Politics", "Business", "Technology"]
+    categories = ["U.S. news", "Politics", "Business", "Technology", "World news"]
 
     for cat in categories:
         encoded = requests.utils.quote(cat)
@@ -42,27 +46,28 @@ def main():
 
         message += f"<b>→ {cat}</b>\n\n"
 
-        for entry in feed.entries[:4]:   # максимум 4 новости на категорию
-            if not entry.title or len(entry.title) < 20:
+        for entry in feed.entries[:3]:   # 3 новости на категорию
+            if not entry.title or len(entry.title) < 15:
                 continue
 
-            title = entry.title.strip()
-
-            # Простая выжимка из заголовка + описание (description часто содержит саммари)
+            title = clean_text(entry.title)
             summary = ""
-            if hasattr(entry, 'description') and entry.description:
-                # Берём первые 2-3 предложения из description
-                desc = entry.description.replace('<b>', '').replace('</b>', '').strip()
-                summary = desc[:380] + "..." if len(desc) > 380 else desc
 
-            if not summary:
-                summary = "Короткая новость без детального описания."
+            # Берём description — часто там уже есть хорошая выжимка
+            if hasattr(entry, 'description') and entry.description:
+                summary = clean_text(entry.description)
+                # Обрезаем до удобной длины для видео (примерно 300-400 символов)
+                if len(summary) > 420:
+                    summary = summary[:417] + "..."
+
+            if not summary or len(summary) < 30:
+                summary = "Важная новость дня."
 
             message += f"<b>{title}</b>\n"
             message += f"{summary}\n\n"
 
             count += 1
-            if count >= 3:        # берём только 3 новости на категорию
+            if count >= 3:
                 break
 
     send_to_telegram(message)
