@@ -7,42 +7,61 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 def send_to_telegram(text):
-    print("=== DEBUG TELEGRAM ===")
-    print(f"Token length: {len(TELEGRAM_TOKEN) if TELEGRAM_TOKEN else 0}")
-    print(f"Chat ID raw: '{TELEGRAM_CHAT_ID}' (type: {type(TELEGRAM_CHAT_ID)})")
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
+        print("❌ Telegram данные не найдены")
+        return
     
-    if not TELEGRAM_TOKEN:
-        print("❌ TOKEN отсутствует!")
-        return
-    if not TELEGRAM_CHAT_ID:
-        print("❌ CHAT_ID отсутствует или пустой!")
-        return
-
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
         "parse_mode": "HTML",
-        "text": text.strip()[:3900]
+        "disable_web_page_preview": False,
+        "text": text[:3900]
     }
     
-    print(f"Отправляем текст длиной: {len(payload['text'])} символов")
-    
     try:
-        r = requests.post(url, json=payload, timeout=20)
-        print(f"Status Code: {r.status_code}")
-        print(f"Ответ Telegram: {r.text}")
+        r = requests.post(url, json=payload, timeout=15)
+        if r.status_code == 200:
+            print("✅ Сообщение успешно отправлено в Telegram")
+        else:
+            print(f"❌ Telegram error: {r.status_code} - {r.text}")
     except Exception as e:
-        print(f"Исключение: {e}")
+        print(f"❌ Ошибка отправки: {e}")
 
 def main():
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] === ЗАПУСК ТЕСТА ===")
-    
-    test_message = f"<b>🔥 Тест от {datetime.now().strftime('%d.%m %H:%M')}</b>\n\n"
-    test_message += "Это тестовое сообщение.\n"
-    test_message += "Если ты его видишь — бот работает корректно."
+    print(f"[{datetime.now().strftime('%H:%M')}] Запуск US News Bot")
 
-    send_to_telegram(test_message)
-    print("=== СКРИПТ ЗАВЕРШЁН ===")
+    message = f"<b>🇺🇸 Свежие новости США</b>\n"
+    message += f"<i>{datetime.now().strftime('%d %B %H:%M')}</i>\n\n"
+
+    # Основные категории для американской аудитории
+    categories = [
+        "U.S. news",
+        "Politics",
+        "World news", 
+        "Business",
+        "Technology",
+        "Entertainment"
+    ]
+
+    for i, category in enumerate(categories, 1):
+        encoded = requests.utils.quote(category)
+        rss_url = f"https://news.google.com/rss/search?q={encoded}&hl=en-US&gl=US&ceid=US:en"
+        
+        feed = feedparser.parse(rss_url)
+        articles = []
+        
+        for entry in feed.entries[:5]:   # по 5 новостей на категорию
+            title = entry.title[:120]
+            if len(entry.title) > 120:
+                title += "..."
+            articles.append(f"• <a href='{entry.link}'>{title}</a>")
+        
+        if articles:
+            message += f"<b>{i}. {category}</b>\n" + "\n".join(articles) + "\n\n"
+
+    send_to_telegram(message)
+    print("Работа завершена.")
 
 if __name__ == "__main__":
     main()
