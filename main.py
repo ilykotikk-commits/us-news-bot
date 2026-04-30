@@ -1,0 +1,27 @@
+name: US News to Telegram
+
+on:
+  schedule:
+    - cron: '0 */3 * * *'     # каждые 3 часа
+  workflow_dispatch:          # можно запускать вручную
+
+jobs:
+  news-parser:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pytrends feedparser requests
+
+      - name: Run News Parser
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python main.py
