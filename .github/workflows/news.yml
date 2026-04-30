@@ -1,3 +1,4 @@
+
 name: US News to Telegram
 
 on:
@@ -17,8 +18,8 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
-        run: pip install pytrends feedparser requests
+            - name: Install dependencies
+        run: pip install feedparser requests newspaper3k lxml html5lib
 
       - name: Run News Parser
         env:
